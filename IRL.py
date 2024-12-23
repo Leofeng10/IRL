@@ -5,6 +5,7 @@ import time
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Literal, Optional
+from copy import deepcopy
 
 import evaluate as hf_evaluate
 import numpy as np
@@ -57,10 +58,18 @@ class Args:
     run_eval: bool = True
     """Whether to run evaluation"""
 
+    #IRL Params
+    gamma: float = 1.0
+    """the sampling temperature"""
+    lambda_td:float =  0.1
+    """TD penalty weight"""
+    lambda_kl:float = 0.01
+    """KL penalty weight"""
+
     # optimizer args
-    eps: float = 1e-5
+    eps: float = 1e-9
     """the epsilon value for the optimizer"""
-    lr: float = 3e-6
+    lr: float = 1e-4      #SFT: 3e-6
     """the learning rate"""
     optimizer: Literal["adam", "adamw"] = "adamw"
     """Which optimizer to use"""
@@ -106,7 +115,7 @@ class Args:
     """the sampling temperature"""
 
     # wandb and HF tracking configs
-    track: bool = True
+    track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "tldr_summarize"
     """the wandb's project name"""
@@ -209,7 +218,8 @@ def forward(model, query_responses, tokenizer):
         input_ids=input_ids,
         attention_mask=attention_mask,
         return_dict=True,
-    )
+        use_cache = False   #use_cache should be False. Important
+    ),input_ids
 
 
 def evaluate(args: Args, accelerator, tokenizer, model, dataloader, generation_config):
@@ -362,6 +372,13 @@ if __name__ == "__main__":
     eval_dataloaders = {split: accelerator.prepare(eval_dataloader) for split, eval_dataloader in eval_dataloaders.items()}
     torch.manual_seed(local_seed)  # reset the local seed again
 
+    #Make a reference Model for the KL Divergence Error.
+    reference_model = deepcopy(model)
+    reference_model.eval() #Eval Mode
+    # Disable requires_grad
+    for param in reference_model.parameters():
+        param.requires_grad = False
+
     # WARNING: even with `max_new_tokens` and `min_new_tokens` set to the same value, the number of tokens generated
     # may not be the same. TODO: investigate further, we just want to generate a fixed number of tokens
     generation_config = GenerationConfig(
@@ -388,26 +405,51 @@ if __name__ == "__main__":
             # queries = data["query_token"].to(device, non_blocking=True)
             query_responses = data["query_reference_response_token"]
             with accelerator.accumulate(model):
-                output = forward(model, query_responses, tokenizer)
+                output,inputs = forward(model, query_responses, tokenizer)
                 # mask out gradient effects on response padding tokens
                 labels = query_responses.masked_fill(query_responses == tokenizer.pad_token_id, -1)
                 lm_logits = output.logits
                 # hand-rolled transformer loss: Shift so that tokens < n predict n
                 # but unlike `transformers` we mask the padding tokens via `ignore_index=-1`
+
                 shift_logits = lm_logits[..., :-1, :].contiguous()
                 shift_labels = labels[..., 1:].contiguous()
                 loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), ignore_index=-1)
                 
+                Q=lm_logits[:,:-1,:]
+                actions = labels[:,1:]
+
+                chosen_Q=Q.gather(-1,actions.unsqueeze(-1)).squeeze(-1)
+
+                v = torch.logsumexp(Q, dim=-1)
+
+                log_pi = chosen_Q - v
+
+                v_next = torch.zeros_like(v)
+                v_next[:, :-1] = v[:, 1:]
+
+                td_target = v + log_pi - args.gamma * v_next
+                td_loss = (td_target ** 2).mean()
+
+                nll_loss = (-log_pi).mean()
+
+                with torch.no_grad():
+                    ref_logits = reference_model(inputs).logits[:, :-1, :]
                 
-                
-                
-                
-                
-                
-                
+                ref_log_probs = ref_logits.log_softmax(dim=-1)
+                ref_log_pi = ref_log_probs.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+                # Get the KL loss
+                kl_loss = (log_pi - ref_log_pi).mean()
+
+                # Total loss:
+                # From the paper: J = λ * td_loss + nll_loss + λ_kl * kl_loss
+                loss = args.lambda_td * td_loss + nll_loss + args.lambda_kl * kl_loss
+
                 accelerator.backward(loss)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # gradient clipping
                 optimizer.step()
                 optimizer.zero_grad()
+
             loss_stats[gradient_accumulation_idx] = loss
             gradient_accumulation_idx = (gradient_accumulation_idx + 1) % args.gradient_accumulation_steps
             if update > 1 and (update - 1) % args.gradient_accumulation_steps == 0:
