@@ -23,10 +23,3 @@ The supervised fine-tuning (SFT) code is adapted from <span style="color: #0366d
 ## Notes
 
 This is an experimental implementation and may not fully replicate all aspects of the original paper. Use with caution and expect ongoing changes and improvements.
-
-## Citation
-@code{
-  sankyde,
-  url={https://github.com/sankyde/language-IRL},
-  year={2024}
-}
