@@ -26,7 +26,7 @@ This is an experimental implementation and may not fully replicate all aspects o
 
 ## Citation
 @code{
-  author = {sankyde},
-  url    = {https://github.com/sankyde/IRL},
-  year   = {2024}
+  sankyde,
+  url={https://github.com/sankyde/language-IRL},
+  year={2024}
 }
