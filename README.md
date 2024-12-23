@@ -12,18 +12,9 @@ The supervised fine-tuning (SFT) code is adapted from <span style="color: #0366d
 
 ## Key Components
 
-- Implementation of soft Q-learning for language models
-- Reward inference using inverse reinforcement learning
-- Integration with supervised fine-tuning framework
-- Training and evaluation utilities
 
 ## Implementation Details
 
-The codebase includes:
-- Custom loss functions for IRL training
-- Gradient clipping and optimization utilities
-- Training loop implementations
-- Evaluation metrics and logging
 
 ## Setup and Usage
 
