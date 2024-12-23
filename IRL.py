@@ -412,9 +412,9 @@ if __name__ == "__main__":
                 # hand-rolled transformer loss: Shift so that tokens < n predict n
                 # but unlike `transformers` we mask the padding tokens via `ignore_index=-1`
 
-                shift_logits = lm_logits[..., :-1, :].contiguous()
-                shift_labels = labels[..., 1:].contiguous()
-                loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), ignore_index=-1)
+                # shift_logits = lm_logits[..., :-1, :].contiguous()
+                # shift_labels = labels[..., 1:].contiguous()
+                # loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), ignore_index=-1)
                 
                 Q=lm_logits[:,:-1,:]
                 actions = labels[:,1:]
