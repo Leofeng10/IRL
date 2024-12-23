@@ -1,0 +1,82 @@
+2024-12-20 11:36:32,800 INFO    StreamThr :46771 [internal.py:wandb_internal():86] W&B internal server running at pid: 46771, started at: 2024-12-20 11:36:32.800348
+2024-12-20 11:36:32,802 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status
+2024-12-20 11:36:32,811 INFO    WriterThread:46771 [datastore.py:open_for_write():85] open: /Users/sanketdesai/Documents/irl/wandb/offline-run-20241220_113632-ln7wfuas/run-ln7wfuas.wandb
+2024-12-20 11:36:32,822 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: run_start
+2024-12-20 11:36:32,829 DEBUG   HandlerThread:46771 [system_info.py:__init__():31] System info init
+2024-12-20 11:36:32,829 DEBUG   HandlerThread:46771 [system_info.py:__init__():46] System info init done
+2024-12-20 11:36:32,829 INFO    HandlerThread:46771 [system_monitor.py:start():181] Starting system monitor
+2024-12-20 11:36:32,829 INFO    SystemMonitor:46771 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2024-12-20 11:36:32,829 INFO    HandlerThread:46771 [system_monitor.py:probe():201] Collecting system info
+2024-12-20 11:36:32,831 INFO    SystemMonitor:46771 [interfaces.py:start():190] Started cpu monitoring
+2024-12-20 11:36:32,831 DEBUG   HandlerThread:46771 [system_info.py:probe():195] Probing system
+2024-12-20 11:36:32,831 INFO    SystemMonitor:46771 [interfaces.py:start():190] Started disk monitoring
+2024-12-20 11:36:32,832 INFO    SystemMonitor:46771 [interfaces.py:start():190] Started gpuapple monitoring
+2024-12-20 11:36:32,832 INFO    SystemMonitor:46771 [interfaces.py:start():190] Started memory monitoring
+2024-12-20 11:36:32,836 INFO    SystemMonitor:46771 [interfaces.py:start():190] Started network monitoring
+2024-12-20 11:36:32,838 DEBUG   HandlerThread:46771 [gitlib.py:_init_repo():53] git repository is invalid
+2024-12-20 11:36:32,838 DEBUG   HandlerThread:46771 [system_info.py:probe():240] Probing system done
+2024-12-20 11:36:32,838 DEBUG   HandlerThread:46771 [system_monitor.py:probe():210] {'os': 'macOS-15.1.1-arm64-arm-64bit', 'python': '3.10.16', 'heartbeatAt': '2024-12-20T16:36:32.831513', 'startedAt': '2024-12-20T16:36:32.777488', 'docker': None, 'cuda': None, 'args': ('--base_model=EleutherAI/pythia-160m', '--sft_model_path=EleutherAI/pythia-160m', '--lr=3e-6', '--deepspeed', '--run_eval', '--track', '--output_dir=models/EleutherAI/pythia-160m/reward_model_1', '--local_eval_batch_size=1', '--seed=1'), 'state': 'running', 'program': '/Users/sanketdesai/Documents/irl/chat_reward.py', 'codePath': 'chat_reward.py', 'host': 'Sankets-MacBook-Air.local', 'username': 'sanketdesai', 'executable': '/opt/miniconda3/envs/rlhf/bin/python', 'cpu_count': 8, 'cpu_count_logical': 8, 'disk': {'total': 460.4317207336426, 'used': 10.004161834716797}, 'gpuapple': {'type': 'arm', 'vendor': 'Apple'}, 'memory': {'total': 16.0}}
+2024-12-20 11:36:32,838 INFO    HandlerThread:46771 [system_monitor.py:probe():211] Finished collecting system info
+2024-12-20 11:36:32,838 INFO    HandlerThread:46771 [system_monitor.py:probe():214] Publishing system info
+2024-12-20 11:36:32,838 DEBUG   HandlerThread:46771 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2024-12-20 11:36:32,839 DEBUG   HandlerThread:46771 [system_info.py:_save_pip():67] Saving pip packages done
+2024-12-20 11:36:32,839 DEBUG   HandlerThread:46771 [system_info.py:_save_conda():74] Saving list of conda packages installed into the current environment
+2024-12-20 11:36:34,279 DEBUG   HandlerThread:46771 [system_info.py:_save_conda():86] Saving conda packages done
+2024-12-20 11:36:34,280 DEBUG   HandlerThread:46771 [system_info.py:_save_code():89] Saving code
+2024-12-20 11:36:34,280 DEBUG   HandlerThread:46771 [system_info.py:_save_code():110] Saving code done
+2024-12-20 11:36:34,281 INFO    HandlerThread:46771 [system_monitor.py:probe():216] Finished publishing system info
+2024-12-20 11:36:34,307 INFO    HandlerThread:46771 [handler.py:handle_tbrecord():759] handling tbrecord: tbrecord {
+  log_dir: "runs/chat_reward__1__1734712586"
+  save: true
+}
+control {
+  relay_id: "918fb02badc34132a0e8e59992f72aa1"
+}
+_info {
+  stream_id: "ln7wfuas"
+}
+
+2024-12-20 11:36:34,307 DEBUG   HandlerThread:46771 [config_util.py:dict_from_config_file():104] no default config file found in config-defaults.yaml
+2024-12-20 11:36:37,823 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:36:37,824 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:36:42,837 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:36:42,837 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:36:47,855 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:36:47,855 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:36:52,867 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:36:52,867 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:36:57,882 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:36:57,882 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:02,905 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:02,906 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:07,927 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:07,928 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:12,953 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:12,953 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:17,969 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:17,969 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:22,984 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:22,985 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:28,006 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:28,007 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:32,843 DEBUG   SystemMonitor:46771 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2024-12-20 11:37:33,028 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:33,029 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:38,042 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:38,043 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:43,060 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:43,061 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:48,079 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:48,081 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:53,097 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:53,098 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:37:58,115 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:37:58,116 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:38:03,137 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:38:03,138 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:38:08,159 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:38:08,160 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:38:13,178 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:38:13,179 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:38:18,192 DEBUG   HandlerThread:46771 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:38:18,193 DEBUG   SenderThread:46771 [sender.py:send_request():396] send_request: status_report

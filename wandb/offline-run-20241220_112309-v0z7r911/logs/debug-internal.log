@@ -1,0 +1,66 @@
+2024-12-20 11:23:09,208 INFO    StreamThr :46282 [internal.py:wandb_internal():86] W&B internal server running at pid: 46282, started at: 2024-12-20 11:23:09.207303
+2024-12-20 11:23:09,210 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status
+2024-12-20 11:23:09,216 INFO    WriterThread:46282 [datastore.py:open_for_write():85] open: /Users/sanketdesai/Documents/irl/wandb/offline-run-20241220_112309-v0z7r911/run-v0z7r911.wandb
+2024-12-20 11:23:09,227 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: run_start
+2024-12-20 11:23:09,234 DEBUG   HandlerThread:46282 [system_info.py:__init__():31] System info init
+2024-12-20 11:23:09,234 DEBUG   HandlerThread:46282 [system_info.py:__init__():46] System info init done
+2024-12-20 11:23:09,234 INFO    HandlerThread:46282 [system_monitor.py:start():181] Starting system monitor
+2024-12-20 11:23:09,234 INFO    HandlerThread:46282 [system_monitor.py:probe():201] Collecting system info
+2024-12-20 11:23:09,235 INFO    SystemMonitor:46282 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2024-12-20 11:23:09,235 DEBUG   HandlerThread:46282 [system_info.py:probe():195] Probing system
+2024-12-20 11:23:09,235 INFO    SystemMonitor:46282 [interfaces.py:start():190] Started cpu monitoring
+2024-12-20 11:23:09,236 INFO    SystemMonitor:46282 [interfaces.py:start():190] Started disk monitoring
+2024-12-20 11:23:09,237 INFO    SystemMonitor:46282 [interfaces.py:start():190] Started gpuapple monitoring
+2024-12-20 11:23:09,239 INFO    SystemMonitor:46282 [interfaces.py:start():190] Started memory monitoring
+2024-12-20 11:23:09,240 INFO    SystemMonitor:46282 [interfaces.py:start():190] Started network monitoring
+2024-12-20 11:23:09,244 DEBUG   HandlerThread:46282 [gitlib.py:_init_repo():53] git repository is invalid
+2024-12-20 11:23:09,245 DEBUG   HandlerThread:46282 [system_info.py:probe():240] Probing system done
+2024-12-20 11:23:09,245 DEBUG   HandlerThread:46282 [system_monitor.py:probe():210] {'os': 'macOS-15.1.1-arm64-arm-64bit', 'python': '3.10.16', 'heartbeatAt': '2024-12-20T16:23:09.235787', 'startedAt': '2024-12-20T16:23:09.188059', 'docker': None, 'cuda': None, 'args': ('--base_model=EleutherAI/pythia-160m', '--sft_model_path=EleutherAI/pythia-160m', '--lr=3e-6', '--deepspeed', '--run_eval', '--track', '--output_dir=models/EleutherAI/pythia-160m/reward_model_1', '--local_eval_batch_size=1', '--seed=1'), 'state': 'running', 'program': '/Users/sanketdesai/Documents/irl/chat_reward.py', 'codePath': 'chat_reward.py', 'host': 'Sankets-MacBook-Air.local', 'username': 'sanketdesai', 'executable': '/opt/miniconda3/envs/rlhf/bin/python', 'cpu_count': 8, 'cpu_count_logical': 8, 'disk': {'total': 460.4317207336426, 'used': 10.004161834716797}, 'gpuapple': {'type': 'arm', 'vendor': 'Apple'}, 'memory': {'total': 16.0}}
+2024-12-20 11:23:09,245 INFO    HandlerThread:46282 [system_monitor.py:probe():211] Finished collecting system info
+2024-12-20 11:23:09,245 INFO    HandlerThread:46282 [system_monitor.py:probe():214] Publishing system info
+2024-12-20 11:23:09,245 DEBUG   HandlerThread:46282 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2024-12-20 11:23:09,245 DEBUG   HandlerThread:46282 [system_info.py:_save_pip():67] Saving pip packages done
+2024-12-20 11:23:09,245 DEBUG   HandlerThread:46282 [system_info.py:_save_conda():74] Saving list of conda packages installed into the current environment
+2024-12-20 11:23:10,704 DEBUG   HandlerThread:46282 [system_info.py:_save_conda():86] Saving conda packages done
+2024-12-20 11:23:10,704 DEBUG   HandlerThread:46282 [system_info.py:_save_code():89] Saving code
+2024-12-20 11:23:10,705 DEBUG   HandlerThread:46282 [system_info.py:_save_code():110] Saving code done
+2024-12-20 11:23:10,706 INFO    HandlerThread:46282 [system_monitor.py:probe():216] Finished publishing system info
+2024-12-20 11:23:10,734 INFO    HandlerThread:46282 [handler.py:handle_tbrecord():759] handling tbrecord: tbrecord {
+  log_dir: "runs/chat_reward__1__1734711784"
+  save: true
+}
+control {
+  relay_id: "829703cb37634090911305a4ef943be2"
+}
+_info {
+  stream_id: "v0z7r911"
+}
+
+2024-12-20 11:23:10,735 DEBUG   HandlerThread:46282 [config_util.py:dict_from_config_file():104] no default config file found in config-defaults.yaml
+2024-12-20 11:23:14,232 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:14,233 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:19,251 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:19,252 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:24,273 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:24,273 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:29,291 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:29,292 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:34,308 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:34,309 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:39,330 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:39,331 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:44,343 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:44,344 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:49,358 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:49,358 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:54,375 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:54,375 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:23:59,391 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:23:59,392 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:24:04,407 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:24:04,409 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:24:09,243 DEBUG   SystemMonitor:46282 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2024-12-20 11:24:09,426 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:24:09,426 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
+2024-12-20 11:24:14,449 DEBUG   HandlerThread:46282 [handler.py:handle_request():144] handle_request: status_report
+2024-12-20 11:24:14,450 DEBUG   SenderThread:46282 [sender.py:send_request():396] send_request: status_report
