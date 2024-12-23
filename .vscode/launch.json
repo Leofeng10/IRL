@@ -5,7 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: SFT Runner",
+            "name": "Python Debugger: Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "--base_model=EleutherAI/pythia-1b-deduped --push_to_hub "
+        },
+        {
+            "name": "Python Debugger: IRL Runner",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",

@@ -77,6 +77,13 @@ class Args:
     """Which scheduler to use"""
     warm_up_steps: int = 0
     """Number of warm up steps for the scheduler"""
+    use_kl: bool = True
+    """Use KL Divergence between a reference model and a policy model."""
+    use_mle: bool = False
+    """Use Original MLE Loss."""
+    use_irl:bool = True
+    """Use IRL Loss"""
+
 
     # various batch sizes
     world_size: Optional[int] = None
@@ -103,7 +110,7 @@ class Args:
     # other args
     base_model: str = "EleutherAI/pythia-160m"
     """the name of the pretrained model to use"""
-    query_dataset: str = "vwxyzjn/summarize_from_feedback_tldr_3_filtered_oai_preprocessing_1706381144"
+    query_dataset: str = "sdesai/gsm8k_tldr_style"
     """the query dataset"""
     response_length: int = 53
     """the length of the response"""
@@ -300,7 +307,7 @@ if __name__ == "__main__":
     dataset = dataset.with_format("torch", columns=["query_reference_response_token"])
     dataloader = DataLoader(dataset, batch_size=args.local_micro_batch_size, shuffle=True)
     eval_dataloaders = {}
-    for split in ["validation", "test"]:
+    for split in ["test"]:
         eval_dataset = load_dataset(args.query_dataset, split=split)
         eval_dataset = eval_dataset.with_format("torch", columns=["query_token", "reference_response_token"])
         eval_dataloaders[split] = DataLoader(eval_dataset, batch_size=args.local_eval_batch_size)
@@ -372,12 +379,13 @@ if __name__ == "__main__":
     eval_dataloaders = {split: accelerator.prepare(eval_dataloader) for split, eval_dataloader in eval_dataloaders.items()}
     torch.manual_seed(local_seed)  # reset the local seed again
 
-    #Make a reference Model for the KL Divergence Error.
-    reference_model = deepcopy(model)
-    reference_model.eval() #Eval Mode
-    # Disable requires_grad
-    for param in reference_model.parameters():
-        param.requires_grad = False
+    if args.use_kl:
+        #Make a reference Model for the KL Divergence Error.
+        reference_model = deepcopy(model)
+        reference_model.eval() #Eval Mode
+        # Disable requires_grad
+        for param in reference_model.parameters():
+            param.requires_grad = False
 
     # WARNING: even with `max_new_tokens` and `min_new_tokens` set to the same value, the number of tokens generated
     # may not be the same. TODO: investigate further, we just want to generate a fixed number of tokens
@@ -391,6 +399,8 @@ if __name__ == "__main__":
     )
 
     accelerator.print("===training model===")
+    print("====Using IRL====" if args.use_irl else "=====Using MLE=====" if args.use_mle else "====Using neither====")
+    print("======using kl======" if args.use_kl else "no kl")
     loss_stats = torch.zeros(args.gradient_accumulation_steps, device=device)
     model.train()
     gradient_accumulation_idx = 0
@@ -412,41 +422,53 @@ if __name__ == "__main__":
                 # hand-rolled transformer loss: Shift so that tokens < n predict n
                 # but unlike `transformers` we mask the padding tokens via `ignore_index=-1`
 
-                # shift_logits = lm_logits[..., :-1, :].contiguous()
-                # shift_labels = labels[..., 1:].contiguous()
-                # loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), ignore_index=-1)
+                ## Use original Cross Entropy Loss
+                if args.use_mle:
+                    shift_logits = lm_logits[..., :-1, :].contiguous()
+                    shift_labels = labels[..., 1:].contiguous()
+                    loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), ignore_index=-1)
                 
-                Q=lm_logits[:,:-1,:]
-                actions = labels[:,1:]
+                ## Use IRL loss
+                if args.use_irl:
+                    Q=lm_logits[:,:-1,:]
+                    actions = labels[:,1:]
 
-                chosen_Q=Q.gather(-1,actions.unsqueeze(-1)).squeeze(-1)
+                    chosen_Q=Q.gather(-1,actions.unsqueeze(-1)).squeeze(-1)
 
-                v = torch.logsumexp(Q, dim=-1)
+                    v = torch.logsumexp(Q, dim=-1)
 
-                log_pi = chosen_Q - v
+                    log_pi = chosen_Q - v
 
-                v_next = torch.zeros_like(v)
-                v_next[:, :-1] = v[:, 1:]
+                    v_next = torch.zeros_like(v)
+                    v_next[:, :-1] = v[:, 1:]
 
-                td_target = v + log_pi - args.gamma * v_next
-                td_loss = (td_target ** 2).mean()
+                    td_target = v + log_pi - args.gamma * v_next
+                    td_loss = (td_target ** 2).mean()
 
-                nll_loss = (-log_pi).mean()
+                    nll_loss = (-log_pi).mean()
 
-                with torch.no_grad():
-                    ref_logits = reference_model(inputs).logits[:, :-1, :]
-                
-                ref_log_probs = ref_logits.log_softmax(dim=-1)
-                ref_log_pi = ref_log_probs.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
-                # Get the KL loss
-                kl_loss = (log_pi - ref_log_pi).mean()
+                    ## Whether to use KL divergence so that the current policy doesn't stray far from the original policy
+                    if args.use_kl:
+                        with torch.no_grad():
+                            ref_logits = reference_model(inputs).logits[:, :-1, :]
+                    
+                        ref_log_probs = ref_logits.log_softmax(dim=-1)
+                        ref_log_pi = ref_log_probs.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
 
-                # Total loss:
-                # From the paper: J = λ * td_loss + nll_loss + λ_kl * kl_loss
-                loss = args.lambda_td * td_loss + nll_loss + args.lambda_kl * kl_loss
+                        # Get the KL loss
+                        kl_loss = (log_pi - ref_log_pi).mean()
+
+                        # Total loss:
+                        # From the paper: J = λ * td_loss + nll_loss + λ_kl * kl_loss
+                        loss = args.lambda_td * td_loss + nll_loss + args.lambda_kl * kl_loss
+                    else:
+                        loss = args.lambda_td * td_loss + nll_loss
+
 
                 accelerator.backward(loss)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # gradient clipping
+                #Gradient Clipping if use_irl is turned on
+                if args.use_irl:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # gradient clipping
                 optimizer.step()
                 optimizer.zero_grad()
 
