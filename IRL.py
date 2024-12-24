@@ -83,6 +83,8 @@ class Args:
     """Use Original MLE Loss."""
     use_irl:bool = True
     """Use IRL Loss"""
+    mle_steps_before_irl:int = 0
+    """Using MLE to stabilize training before starting IRL"""
 
 
     # various batch sizes
@@ -307,7 +309,7 @@ if __name__ == "__main__":
     dataset = dataset.with_format("torch", columns=["query_reference_response_token"])
     dataloader = DataLoader(dataset, batch_size=args.local_micro_batch_size, shuffle=True)
     eval_dataloaders = {}
-    for split in ["test"]:
+    for split in ["validation","test"]:
         eval_dataset = load_dataset(args.query_dataset, split=split)
         eval_dataset = eval_dataset.with_format("torch", columns=["query_token", "reference_response_token"])
         eval_dataloaders[split] = DataLoader(eval_dataset, batch_size=args.local_eval_batch_size)
@@ -421,6 +423,19 @@ if __name__ == "__main__":
                 lm_logits = output.logits
                 # hand-rolled transformer loss: Shift so that tokens < n predict n
                 # but unlike `transformers` we mask the padding tokens via `ignore_index=-1`
+
+                if global_step < args.mle_steps_before_irl:
+                    args.use_irl = False
+                    args.use_mle = True
+
+                    print(f"First {args.mle_steps_before_irl} epochs are MLE to stabilize training")
+                elif global_step == args.mle_steps_before_irl:
+                    print("starting IRL now")
+                    args.use_irl = True
+                    args.use_mle = False
+                else:
+                    pass
+
 
                 ## Use original Cross Entropy Loss
                 if args.use_mle:

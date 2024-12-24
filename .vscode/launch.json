@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--base_model=EleutherAI/pythia-1b-deduped --push_to_hub "
+            "args": "--base_model=EleutherAI/pythia-1b-deduped --push_to_hub" //--push_to_hub 
         },
         {
             "name": "Python Debugger: IRL Runner",
