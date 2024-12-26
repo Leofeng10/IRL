@@ -448,7 +448,11 @@ if __name__ == "__main__":
                     Q=lm_logits[:,:-1,:]
                     actions = labels[:,1:]
 
-                    chosen_Q=Q.gather(-1,actions.unsqueeze(-1)).squeeze(-1)
+                    padding_mask = actions < 0.
+                    valid_actions=actions.clamp(min=0)
+
+                    chosen_Q=Q.gather(-1,valid_actions.unsqueeze(-1)).squeeze(-1)
+                    chosen_Q = chosen_Q * padding_mask
 
                     v = torch.logsumexp(Q, dim=-1)
 
@@ -468,7 +472,8 @@ if __name__ == "__main__":
                             ref_logits = reference_model(inputs).logits[:, :-1, :]
                     
                         ref_log_probs = ref_logits.log_softmax(dim=-1)
-                        ref_log_pi = ref_log_probs.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+                        ref_log_pi = ref_log_probs.gather(-1, valid_actions.unsqueeze(-1)).squeeze(-1)
+                        ref_log_pi = ref_log_pi * padding_mask
 
                         # Get the KL loss
                         kl_loss = (log_pi - ref_log_pi).mean()
