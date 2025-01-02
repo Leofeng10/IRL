@@ -57,19 +57,21 @@ class Args:
     """How often to print sample output"""
     run_eval: bool = True
     """Whether to run evaluation"""
+    eval_every: int = 500
+    """How Often to run Eval"""
 
     #IRL Params
     gamma: float = 1.0
     """the sampling temperature"""
     lambda_td:float =  0.1
     """TD penalty weight"""
-    lambda_kl:float = 0.01
+    lambda_kl:float = 0.01 #Colab: 0.1
     """KL penalty weight"""
 
     # optimizer args
     eps: float = 1e-9
     """the epsilon value for the optimizer"""
-    lr: float = 1e-4      #SFT: 3e-6
+    lr: float = 1e-4      #Colab: 3e-6
     """the learning rate"""
     optimizer: Literal["adam", "adamw"] = "adamw"
     """Which optimizer to use"""
@@ -90,13 +92,13 @@ class Args:
     # various batch sizes
     world_size: Optional[int] = None
     """The number of processes (GPUs) to use"""
-    num_train_epochs: int = 1
+    num_train_epochs: int = 3
     """Number of epochs to train"""
     num_updates: Optional[int] = None
     """The number of updates to train"""
-    gradient_accumulation_steps: int = 16
+    gradient_accumulation_steps: int = 8 #Colab:32 
     """The number of gradient accumulation steps"""
-    local_micro_batch_size: Optional[int] = 1
+    local_micro_batch_size: Optional[int] = 4 ##Colab:4
     """The micro batch size per GPU (HF's `per_device_train_batch_size`)"""
     total_episodes: Optional[int] = None
     """The total number of episodes in the dataset"""
@@ -106,21 +108,22 @@ class Args:
     """The batch size per GPU (HF's `per_device_train_batch_size` * `gradient_accumulation_steps`)"""
     batch_size: Optional[int] = None
     """The batch size across devices (HF's `per_device_train_batch_size` * `world_size` * `gradient_accumulation_steps`)"""
-    local_eval_batch_size: int = 4
+    local_eval_batch_size: int = 4 #Colab:16
     """per rank eval batch size"""
+    
 
     # other args
     base_model: str = "EleutherAI/pythia-160m"
     """the name of the pretrained model to use"""
-    query_dataset: str = "sdesai/gsm8k_tldr_style"
+    query_dataset: str = 'sdesai/gsm8k_tldr_style'
     """the query dataset"""
-    response_length: int = 53
+    response_length: int = 100
     """the length of the response"""
     truncate_token: Literal["eos"] = "eos"
     """the truncate token"""
     truncate_token_id: Optional[int] = None
     """the truncation token id"""
-    temperature: float = 0.01
+    temperature: float = 0.7 #Colab: 0.6
     """the sampling temperature"""
 
     # wandb and HF tracking configs
@@ -245,7 +248,7 @@ def evaluate(args: Args, accelerator, tokenizer, model, dataloader, generation_c
             reference_responses = data["reference_response_token"]
             context_length = queries.shape[1]
             query_reference_responses = torch.cat((queries, reference_responses), dim=1)
-            output = forward(model, query_reference_responses, tokenizer)
+            output,_ = forward(model, query_reference_responses, tokenizer)
             labels = query_reference_responses.masked_fill(query_reference_responses == tokenizer.pad_token_id, -1)
             lm_logits = output.logits
             # hand-rolled transformer loss: Shift so that tokens < n predict n
@@ -445,25 +448,34 @@ if __name__ == "__main__":
                 
                 ## Use IRL loss
                 if args.use_irl:
-                    Q=lm_logits[:,:-1,:]
-                    actions = labels[:,1:]
+                    Q=lm_logits[:,:-1,:]  # shape: [batch, seq_len-1, vocab_size]
+                    actions = labels[:,1:] # expert actions
 
+                    # We are only choosing the valid actions, meaning actions >= 0. -1 gives out CUDA Error for .gather
                     padding_mask = actions < 0.
                     valid_actions=actions.clamp(min=0)
 
                     chosen_Q=Q.gather(-1,valid_actions.unsqueeze(-1)).squeeze(-1)
                     chosen_Q = chosen_Q * padding_mask
 
+                    # Compute values: v(s) = logsumexp(Q(s,:))
                     v = torch.logsumexp(Q, dim=-1)
 
+                     # log_pi(a|s) = Q(s,a) - v(s)
                     log_pi = chosen_Q - v
-
+                    
+                    # Next state values v(s'):
+                    # The next state value corresponds to the next token step:
                     v_next = torch.zeros_like(v)
-                    v_next[:, :-1] = v[:, 1:]
+                    v_next[:, :-1] = v[:, 1:] # shift right by one
+                    # The last token in a sequence is terminal, so v_next for it stays 0.
+
 
                     td_target = v + log_pi - args.gamma * v_next
                     td_loss = (td_target ** 2).mean()
 
+                    # Negative log-likelihood term (In IQLearn formula):
+                    # It's essentially -log_pi averaged
                     nll_loss = (-log_pi).mean()
 
                     ## Whether to use KL divergence so that the current policy doesn't stray far from the original policy
@@ -476,12 +488,14 @@ if __name__ == "__main__":
                         ref_log_pi = ref_log_pi * padding_mask
 
                         # Get the KL loss
+                        # KL(policy||ref) = E[log_pi - ref_log_pi]
                         kl_loss = (log_pi - ref_log_pi).mean()
 
                         # Total loss:
                         # From the paper: J = λ * td_loss + nll_loss + λ_kl * kl_loss
                         loss = args.lambda_td * td_loss + nll_loss + args.lambda_kl * kl_loss
                     else:
+                        # The paper says that there are neglible benefits to using KL, so this bypasses KL.
                         loss = args.lambda_td * td_loss + nll_loss
 
 
@@ -499,6 +513,23 @@ if __name__ == "__main__":
                 writer.add_scalar("train/sft/loss", accelerator.gather(loss_stats).mean().item(), update)
                 writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
                 accelerator.print(f"{loss.item()=}, {scheduler.get_last_lr()=}, {optimizer.param_groups[0]['lr']=}, {update=}")
+
+            if update % args.eval_every == 0:
+                if args.run_eval:
+                    for eval_split in ['validation']:
+                        eval_df, rouge_scores, all_eval_losses = evaluate(
+                            args, accelerator, tokenizer, model, eval_dataloaders[eval_split], generation_config
+                        )
+                        if accelerator.is_main_process:
+                            eval_df.to_csv(f"runs/{args.run_name}/{eval_split}_table.csv")
+                            if args.track:
+                                wandb.log({f"eval/{eval_split}_query_responses": wandb.Table(dataframe=eval_df)}, step=update)
+                        for k, v in rouge_scores.items():
+                            rouge_metric = torch.tensor(v, device=device)
+                            rouge_metric = accelerator.gather(rouge_metric)
+                            writer.add_scalar(f"{eval_split}/sft/rouge/{k}", rouge_metric.mean().item(), update)
+                            accelerator.print(f"{eval_split}/sft/rouge/{k}: {rouge_metric.mean().item()} {rouge_metric.shape} {rouge_metric}")
+                        writer.add_scalar(f"{eval_split}/sft/loss", torch.stack(all_eval_losses).mean().item(), update)
 
     if args.run_eval:
         for eval_split in eval_dataloaders:

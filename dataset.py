@@ -47,6 +47,7 @@ class Args:
     push_to_hub: bool = False
     check_length_correctness: bool = True
     debug: bool = False
+    dataset: str = "gsm8k"
 
     tldr_params: TaskQueryHParams = field(
         default_factory=lambda: TaskQueryHParams(
@@ -321,7 +322,7 @@ if __name__ == "__main__":
     ############################################################
     # 1) Load GSM8K dataset & add a validation split
     ############################################################
-    gsm8k = load_dataset("gsm8k", "main",ignore_verifications=True)
+    gsm8k = load_dataset(args.dataset, "main")  ## IF Error: Use ignore_verifications=True
 
     # find the max tokenized length between all splits
     max_token_len = find_max_token_length(gsm8k,tokenizer)
