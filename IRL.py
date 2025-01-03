@@ -57,7 +57,7 @@ class Args:
     """How often to print sample output"""
     run_eval: bool = True
     """Whether to run evaluation"""
-    eval_every: int = 500
+    eval_every: int = 20
     """How Often to run Eval"""
 
     #IRL Params
@@ -96,9 +96,9 @@ class Args:
     """Number of epochs to train"""
     num_updates: Optional[int] = None
     """The number of updates to train"""
-    gradient_accumulation_steps: int = 8 #Colab:32 
+    gradient_accumulation_steps: int = 4 #Colab:32 
     """The number of gradient accumulation steps"""
-    local_micro_batch_size: Optional[int] = 4 ##Colab:4
+    local_micro_batch_size: Optional[int] = 2 ##Colab:4
     """The micro batch size per GPU (HF's `per_device_train_batch_size`)"""
     total_episodes: Optional[int] = None
     """The total number of episodes in the dataset"""
@@ -127,9 +127,9 @@ class Args:
     """the sampling temperature"""
 
     # wandb and HF tracking configs
-    track: bool = False
+    track: bool = True
     """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "tldr_summarize"
+    wandb_project_name: str = "IRL Finetuning"
     """the wandb's project name"""
     wandb_entity: Optional[str] = None
     """the entity (team) of wandb's project"""
@@ -145,6 +145,8 @@ class Args:
     """the url of the saved model in the Hugging Face Hub (will be autoset)"""
     output_dir: str = "models/sft_model"
     """Where to save the model"""
+    monitor: bool = True
+    """Monitor the internal Chosen Q, Value, Logits, Log_PI"""
 
 
 def parse_args() -> tuple[Args, Accelerator]:
@@ -187,6 +189,27 @@ def print_rich_table(title: str, df: pd.DataFrame, console: Console) -> Table:
     console.rule(f"[bold red]{title}")
     console.print(table)
 
+
+## Monitoring Training.
+def monitor_training_dynamics(logits, chosen_Q, log_pi, v):
+    with torch.no_grad():
+        # Monitor logit distribution
+        probs = F.softmax(logits, dim=-1)
+        entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=-1)
+        
+        # Monitor Q-values and policy
+        q_mean = chosen_Q.mean()
+        q_std = chosen_Q.std()
+        logpi_mean = log_pi.mean() 
+        v_mean = v.mean()
+        
+        return {
+            'entropy': entropy.mean(),
+            'q_mean': q_mean,
+            'q_std': q_std,
+            'logpi_mean': logpi_mean,
+            'v_mean': v_mean
+        }
 
 def generate(lm_backbone, queries, tokenizer, generation_config):
     """generate in a way that does not affect padding tokens"""
@@ -370,12 +393,14 @@ if __name__ == "__main__":
         optimizer = optim.Adam(model.parameters(), lr=args.lr, eps=args.eps)
     elif args.optimizer == "adamw":
         optimizer = optim.AdamW(model.parameters(), lr=args.lr, eps=args.eps)
-    scheduler = get_scheduler(
-        args.scheduler,
-        optimizer=optimizer,
-        num_warmup_steps=args.warm_up_steps,
-        num_training_steps=args.num_updates * args.num_train_epochs,
-    )
+    
+    #scheduler skews training for now. TODO: Update this
+    # scheduler = get_scheduler(
+    #     args.scheduler,
+    #     optimizer=optimizer,
+    #     num_warmup_steps=args.warm_up_steps,
+    #     num_training_steps=args.num_updates * args.num_train_epochs,
+    # )
 
     # sync random states for DataLoader(shuffle=True) before `accelerator.prepare`
     # see https://gist.github.com/vwxyzjn/2581bff1e48e185e0b85b6dfe1def79c
@@ -396,10 +421,10 @@ if __name__ == "__main__":
     # may not be the same. TODO: investigate further, we just want to generate a fixed number of tokens
     generation_config = GenerationConfig(
         max_new_tokens=args.response_length,
-        min_new_tokens=args.response_length,
-        temperature=(args.temperature + 1e-7),
-        top_k=0.0,
-        top_p=1.0,
+        min_new_tokens=1, #args.response_length
+        temperature=0.3, 
+        top_k=50, #0.0
+        top_p=0.9, #1.0
         do_sample=True,
     )
 
@@ -456,7 +481,7 @@ if __name__ == "__main__":
                     valid_actions=actions.clamp(min=0)
 
                     chosen_Q=Q.gather(-1,valid_actions.unsqueeze(-1)).squeeze(-1)
-                    chosen_Q = chosen_Q * padding_mask
+                    chosen_Q = chosen_Q * (~padding_mask)
 
                     # Compute values: v(s) = logsumexp(Q(s,:))
                     v = torch.logsumexp(Q, dim=-1)
@@ -485,7 +510,7 @@ if __name__ == "__main__":
                     
                         ref_log_probs = ref_logits.log_softmax(dim=-1)
                         ref_log_pi = ref_log_probs.gather(-1, valid_actions.unsqueeze(-1)).squeeze(-1)
-                        ref_log_pi = ref_log_pi * padding_mask
+                        ref_log_pi = ref_log_pi * (~padding_mask)
 
                         # Get the KL loss
                         # KL(policy||ref) = E[log_pi - ref_log_pi]
@@ -509,10 +534,16 @@ if __name__ == "__main__":
             loss_stats[gradient_accumulation_idx] = loss
             gradient_accumulation_idx = (gradient_accumulation_idx + 1) % args.gradient_accumulation_steps
             if update > 1 and (update - 1) % args.gradient_accumulation_steps == 0:
-                scheduler.step()
+                # scheduler.step() ## Currently due to instability this is disabled. Will enable with proper parameters afterwards.
                 writer.add_scalar("train/sft/loss", accelerator.gather(loss_stats).mean().item(), update)
-                writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
-                accelerator.print(f"{loss.item()=}, {scheduler.get_last_lr()=}, {optimizer.param_groups[0]['lr']=}, {update=}")
+                # writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
+                accelerator.print(f"{loss.item()=}, {optimizer.param_groups[0]['lr']=}, {update=}")
+                
+                # Monitor the internal values of the loop while training
+                if args.monitor: 
+                    metrics = monitor_training_dynamics(lm_logits, chosen_Q, log_pi, v)
+                    for name, value in metrics.items():
+                        writer.add_scalar(f"train/dynamics/{name}", value, update)
 
             if update % args.eval_every == 0:
                 if args.run_eval:
