@@ -2,3 +2,4 @@ runs/
 wandb/
 .vscode/
 .DS_Store.vscode/
+temp.py

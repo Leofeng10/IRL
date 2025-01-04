@@ -57,7 +57,7 @@ class Args:
     """How often to print sample output"""
     run_eval: bool = True
     """Whether to run evaluation"""
-    eval_every: int = 20
+    eval_every: int = 1
     """How Often to run Eval"""
 
     #IRL Params
@@ -117,9 +117,9 @@ class Args:
     """the name of the pretrained model to use"""
     query_dataset: str = 'sdesai/gsm8k_tldr_style'
     """the query dataset"""
-    response_length: int = 100
+    response_length: int = 500
     """the length of the response"""
-    truncate_token: Literal["eos"] = "eos"
+    truncate_token: Literal["eos"] = "<|endoftext|>"
     """the truncate token"""
     truncate_token_id: Optional[int] = None
     """the truncation token id"""
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     )
     # we use the padding token manually but do not resize the token embedding of the model
     tokenizer.add_special_tokens({"pad_token": "[PAD]"})
-    if args.truncate_token == "eos":
+    if args.truncate_token == "<|endoftext|>":
         args.truncate_token_id = tokenizer.eos_token_id
 
     console = Console(force_terminal=True)
