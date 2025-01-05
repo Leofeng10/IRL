@@ -56,7 +56,7 @@ class Args:
     """Whether to use deepspeed to train the model"""
     run_eval: bool = True
     """Whether to run evaluation"""
-    eval_every: int = 1
+    eval_every: int = 1  #Change to 500 for Colab
     """How Often to run Eval"""
 
     #IRL Params
@@ -70,13 +70,13 @@ class Args:
     # optimizer args
     eps: float = 1e-9
     """the epsilon value for the optimizer"""
-    lr: float = 1e-4      #Colab: 3e-6
+    lr: float = 1e-4      #Colab: 5e-5
     """the learning rate"""
     optimizer: Literal["adam", "adamw"] = "adamw"
     """Which optimizer to use"""
     scheduler: str = "cosine"
     """Which scheduler to use"""
-    warm_up_steps: int = 0
+    warm_up_steps: int = 0 #500
     """Number of warm up steps for the scheduler"""
     use_kl: bool = True
     """Use KL Divergence between a reference model and a policy model."""
@@ -105,14 +105,14 @@ class Args:
     """The batch size per GPU (HF's `per_device_train_batch_size` * `gradient_accumulation_steps`)"""
     batch_size: Optional[int] = None
     """The batch size across devices (HF's `per_device_train_batch_size` * `world_size` * `gradient_accumulation_steps`)"""
-    local_eval_batch_size: int = 4 #Colab:16
+    local_eval_batch_size: int = 4 #Colab:8
     """per rank eval batch size"""
     eval_num_samples: int = 30
     """Number of samples to choose from the eval dataset. Use Shuffle=True to make this random"""
     
 
     # other args
-    base_model: str = "EleutherAI/pythia-160m"
+    base_model: str = "EleutherAI/pythia-160m" # Colab: EleutherAI/pythia-410m
     """the name of the pretrained model to use"""
     query_dataset: str = 'sdesai/gsm8k_tldr_style'
     """the query dataset"""
@@ -526,16 +526,19 @@ if __name__ == "__main__":
 
 
                 accelerator.backward(loss)
-                #Gradient Clipping if use_irl is turned on
-                if args.use_irl:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # gradient clipping
-                optimizer.step()
-                optimizer.zero_grad()
+                if accelerator.optimizer_step_was_skipped is False:
+                  #Gradient Clipping if use_irl is turned on
+                  if args.use_irl:
+                      torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # gradient clipping
+
+                  optimizer.step()
+                  optimizer.zero_grad()
+                  scheduler.step()
 
             loss_stats[gradient_accumulation_idx] = loss
             gradient_accumulation_idx = (gradient_accumulation_idx + 1) % args.gradient_accumulation_steps
+
             if update > 1 and (update - 1) % args.gradient_accumulation_steps == 0:
-                scheduler.step() ## Currently due to instability this is disabled. Will enable with proper parameters afterwards.
                 writer.add_scalar("train/sft/loss", accelerator.gather(loss_stats).mean().item(), update)
                 writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
                 accelerator.print(f"{loss.item()=},{scheduler.get_last_lr()[0]=} ,{optimizer.param_groups[0]['lr']=}, {update=}")
