@@ -116,7 +116,7 @@ class Args:
     """the name of the pretrained model to use"""
     query_dataset: str = 'sdesai/gsm8k_tldr_style'
     """the query dataset"""
-    response_length: int = 200
+    response_length: int = 300
     """the length of the response"""
     truncate_token: Literal["eos"] = "<|endoftext|>"
     """the truncate token"""
@@ -253,7 +253,7 @@ def forward(model, query_responses, tokenizer):
         attention_mask=attention_mask,
         return_dict=True,
         use_cache = False   #use_cache should be False. Important
-    ),input_ids
+    )
 
 
 def evaluate(args: Args, accelerator, tokenizer, model, dataloader, generation_config):
@@ -270,7 +270,7 @@ def evaluate(args: Args, accelerator, tokenizer, model, dataloader, generation_c
             reference_responses = data["reference_response_token"]
             context_length = queries.shape[1]
             query_reference_responses = torch.cat((queries, reference_responses), dim=1)
-            output,_ = forward(model, query_reference_responses, tokenizer)
+            output = forward(model, query_reference_responses, tokenizer)
             labels = query_reference_responses.masked_fill(query_reference_responses == tokenizer.pad_token_id, -1)
             lm_logits = output.logits
             # hand-rolled transformer loss: Shift so that tokens < n predict n
@@ -356,7 +356,6 @@ if __name__ == "__main__":
     if accelerator.is_main_process:
         if args.track:
             import wandb
-
             wandb.init(
                 project=args.wandb_project_name,
                 entity=args.wandb_entity,
@@ -440,7 +439,7 @@ if __name__ == "__main__":
             global_step += args.micro_batch_size
             query_responses = data["query_reference_response_token"]
             with accelerator.accumulate(model):
-                output,inputs = forward(model, query_responses, tokenizer)
+                output = forward(model, query_responses, tokenizer)
                 # mask out gradient effects on response padding tokens
                 labels = query_responses.masked_fill(query_responses == tokenizer.pad_token_id, -1)
                 lm_logits = output.logits
@@ -506,8 +505,9 @@ if __name__ == "__main__":
                                 input_ids=ref_input_ids,
                                 attention_mask=ref_attention_mask,
                                 return_dict=True,
-                                use_cache = True  
+                                use_cache = True  #code written again to use cache, instead of using forward.
                             ).logits[:, :-1, :]
+
                     
                         ref_log_probs = ref_logits.log_softmax(dim=-1)
                         ref_log_pi = ref_log_probs.gather(-1, valid_actions.unsqueeze(-1)).squeeze(-1)

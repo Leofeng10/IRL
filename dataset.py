@@ -58,7 +58,7 @@ class Args:
             truncate_text="\n",
             padding="pad_token",
             pad_side="left",
-            max_sft_response_length=100,         
+            max_sft_response_length=300,         
             max_sft_query_response_length=1000,  
             max_rm_response_length=250,         # If you need RM usage
             max_rm_query_response_length=1000,   # If you need RM usage
