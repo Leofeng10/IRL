@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Literal, Optional
 from copy import deepcopy
+from itertools import islice
 
 import evaluate as hf_evaluate
 import numpy as np
@@ -53,8 +54,6 @@ class Args:
     """Whether to load data from the local cache file in `dataset.map`"""
     deepspeed: bool = True
     """Whether to use deepspeed to train the model"""
-    print_sample_output_freq: int = 220
-    """How often to print sample output"""
     run_eval: bool = True
     """Whether to run evaluation"""
     eval_every: int = 1
@@ -94,8 +93,6 @@ class Args:
     """The number of processes (GPUs) to use"""
     num_train_epochs: int = 3
     """Number of epochs to train"""
-    num_updates: Optional[int] = None
-    """The number of updates to train"""
     gradient_accumulation_steps: int = 4 #Colab:32 
     """The number of gradient accumulation steps"""
     local_micro_batch_size: Optional[int] = 2 ##Colab:4
@@ -110,6 +107,8 @@ class Args:
     """The batch size across devices (HF's `per_device_train_batch_size` * `world_size` * `gradient_accumulation_steps`)"""
     local_eval_batch_size: int = 4 #Colab:16
     """per rank eval batch size"""
+    eval_num_samples: int = 30
+    """Number of samples to choose from the eval dataset. Use Shuffle=True to make this random"""
     
 
     # other args
@@ -117,7 +116,7 @@ class Args:
     """the name of the pretrained model to use"""
     query_dataset: str = 'sdesai/gsm8k_tldr_style'
     """the query dataset"""
-    response_length: int = 500
+    response_length: int = 200
     """the length of the response"""
     truncate_token: Literal["eos"] = "<|endoftext|>"
     """the truncate token"""
@@ -265,7 +264,7 @@ def evaluate(args: Args, accelerator, tokenizer, model, dataloader, generation_c
     all_decode_reference_responses = []
     all_losses = []
     unwrapped = accelerator.unwrap_model(model)
-    for _, data in tqdm(enumerate(dataloader)):
+    for _, data in tqdm(enumerate(islice(dataloader, args.eval_num_samples)), total=args.eval_num_samples):      #original: for _, data in tqdm(enumerate(dataloader)):
         with torch.no_grad():
             queries = data["query_token"]
             reference_responses = data["reference_response_token"]
@@ -340,7 +339,6 @@ if __name__ == "__main__":
         eval_dataset = eval_dataset.with_format("torch", columns=["query_token", "reference_response_token"])
         eval_dataloaders[split] = DataLoader(eval_dataset, batch_size=args.local_eval_batch_size)
     args.total_episodes = len(dataset)
-    args.num_updates = args.total_episodes // args.batch_size
 
     tokenizer = AutoTokenizer.from_pretrained(
         args.base_model,
@@ -393,14 +391,13 @@ if __name__ == "__main__":
         optimizer = optim.Adam(model.parameters(), lr=args.lr, eps=args.eps)
     elif args.optimizer == "adamw":
         optimizer = optim.AdamW(model.parameters(), lr=args.lr, eps=args.eps)
-    
-    #scheduler skews training for now. TODO: Update this
-    # scheduler = get_scheduler(
-    #     args.scheduler,
-    #     optimizer=optimizer,
-    #     num_warmup_steps=args.warm_up_steps,
-    #     num_training_steps=args.num_updates * args.num_train_epochs,
-    # )
+
+    scheduler = get_scheduler(
+        args.scheduler,
+        optimizer=optimizer,
+        num_warmup_steps=args.warm_up_steps,
+        num_training_steps=args.num_train_epochs * len(dataloader) // args.gradient_accumulation_steps,
+    )
 
     # sync random states for DataLoader(shuffle=True) before `accelerator.prepare`
     # see https://gist.github.com/vwxyzjn/2581bff1e48e185e0b85b6dfe1def79c
@@ -441,8 +438,6 @@ if __name__ == "__main__":
         for data in dataloader:
             update += 1
             global_step += args.micro_batch_size
-            # reference_responses = data["reference_response_token"].to(device, non_blocking=True)
-            # queries = data["query_token"].to(device, non_blocking=True)
             query_responses = data["query_reference_response_token"]
             with accelerator.accumulate(model):
                 output,inputs = forward(model, query_responses, tokenizer)
@@ -463,7 +458,6 @@ if __name__ == "__main__":
                     args.use_mle = False
                 else:
                     pass
-
 
                 ## Use original Cross Entropy Loss
                 if args.use_mle:
@@ -506,7 +500,14 @@ if __name__ == "__main__":
                     ## Whether to use KL divergence so that the current policy doesn't stray far from the original policy
                     if args.use_kl:
                         with torch.no_grad():
-                            ref_logits = reference_model(inputs).logits[:, :-1, :]
+                            ref_attention_mask = query_responses != tokenizer.pad_token_id
+                            ref_input_ids = torch.masked_fill(query_responses, ~ref_attention_mask, 0)
+                            ref_logits = reference_model(
+                                input_ids=ref_input_ids,
+                                attention_mask=ref_attention_mask,
+                                return_dict=True,
+                                use_cache = True  
+                            ).logits[:, :-1, :]
                     
                         ref_log_probs = ref_logits.log_softmax(dim=-1)
                         ref_log_pi = ref_log_probs.gather(-1, valid_actions.unsqueeze(-1)).squeeze(-1)
@@ -534,10 +535,10 @@ if __name__ == "__main__":
             loss_stats[gradient_accumulation_idx] = loss
             gradient_accumulation_idx = (gradient_accumulation_idx + 1) % args.gradient_accumulation_steps
             if update > 1 and (update - 1) % args.gradient_accumulation_steps == 0:
-                # scheduler.step() ## Currently due to instability this is disabled. Will enable with proper parameters afterwards.
+                scheduler.step() ## Currently due to instability this is disabled. Will enable with proper parameters afterwards.
                 writer.add_scalar("train/sft/loss", accelerator.gather(loss_stats).mean().item(), update)
-                # writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
-                accelerator.print(f"{loss.item()=}, {optimizer.param_groups[0]['lr']=}, {update=}")
+                writer.add_scalar("train/sft/lr", scheduler.get_last_lr()[0], update)
+                accelerator.print(f"{loss.item()=},{scheduler.get_last_lr()[0]=} ,{optimizer.param_groups[0]['lr']=}, {update=}")
                 
                 # Monitor the internal values of the loop while training
                 if args.monitor: 
@@ -562,6 +563,7 @@ if __name__ == "__main__":
                             accelerator.print(f"{eval_split}/sft/rouge/{k}: {rouge_metric.mean().item()} {rouge_metric.shape} {rouge_metric}")
                         writer.add_scalar(f"{eval_split}/sft/loss", torch.stack(all_eval_losses).mean().item(), update)
 
+    ## Running final Eval on both test and Validation.
     if args.run_eval:
         for eval_split in eval_dataloaders:
             eval_df, rouge_scores, all_eval_losses = evaluate(

@@ -64,7 +64,6 @@ If you want to run your implementation, please run the dataset.py with the follo
 | `run_name` | Optional[str] | None | A unique name of this run. |
 | `load_from_cache_file` | bool | False | Whether to load data from the local cache file in `dataset.map`. |
 | `deepspeed` | bool | True | Whether to use deepspeed to train the model. |
-| `print_sample_output_freq` | int | 220 | How often to print sample output. |
 | `run_eval` | bool | True | Whether to run evaluation. |
 | `eval_every` | int | 20 | How Often to run Eval. |
 | `monitor` | bool | True | Monitor the internal Chosen Q, Value, Logits, Log_PI. |
@@ -118,10 +117,11 @@ If you want to run your implementation, please run the dataset.py with the follo
 |----------|------|---------|-------------|
 | `base_model` | str | "EleutherAI/pythia-160m" | The name of the pretrained model to use. |
 | `query_dataset` | str | "sdesai/gsm8k_tldr_style" | The query dataset. |
-| `response_length` | int | 100 | The length of the response. |
+| `response_length` | int | 500 | The length of the response. |
 | `truncate_token` | Literal["eos"] | "eos" | The truncate token. |
 | `truncate_token_id` | Optional[int] | None | The truncation token id. |
 | `temperature` | float | 0.7 | The sampling temperature (Colab: 0.6). |
+| `eval_num_samples` | int | 30 | Number of samples to choose from the eval dataset. Use Shuffle=True to make this random. |
 </details>
 <details>
   <summary><strong>Tracking & Outputs</strong></summary>
