@@ -144,3 +144,45 @@ If you want to run your implementation, please run the dataset.py with the follo
 
 
 This is an experimental implementation and may not fully replicate all aspects of the original paper. Use with caution and expect ongoing changes and improvements.
+
+
+
+
+1. **Run Command to process data**:  
+    ```bash
+    python process_trajectory_dataset.py \
+        --input_path "trajectories.jsonl" \
+        --output_path "processed_dataset" \
+        --tokenizer "bert-base-uncased" \
+        --max_length 1024
+
+2. **Run Command to train reward model**: 
+    ```bash
+    python train_irl_trajectory.py \
+      --dataset_path processed_dataset \
+      --output_path reward_model/irl_reward_model.pth \
+      --model_name bert-base-uncased \
+      --epochs 3 \
+      --batch_size 8
+
+3. **Run Command to finetune llm using reward model**:
+    ```bash
+    python ppo_finetune_with_irl.py \
+      --dataset_path processed_dataset \
+      --policy_model_name gpt2 \
+      --reward_model_path irl_reward_model.pth \
+      --reward_encoder_name bert-base-uncased \
+      --epochs 3 \
+      --batch_size 4 \
+      --lr 1e-5
+
+4. **Run Command to finetune llm using trl library**:
+    ```bash
+    python ppo_trl_with_irl.py \
+      --dataset_path processed_dataset \
+      --policy_model_name gpt2 \
+      --reward_model_path irl_reward_model.pth \
+      --reward_encoder_name bert-base-uncased \
+      --output_dir ppo_trl_model \
+      --batch_size 4 \
+      --epochs 3
